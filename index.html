@@ -903,12 +903,22 @@ function openStDD(anchor,entry,fieldId,group,cb){
     const msg=mk('div');msg.style.cssText='font-family:var(--mono);font-size:10px;color:var(--text3);padding:6px 9px';
     msg.textContent='Assign a list to this field (⚙)';dd.appendChild(msg);
   }
-  // store position at click time, don't move on scroll
+  // position — flip upward if too close to bottom edge
+  dd.style.display='block';dd.style.top='-9999px';dd.style.left='-9999px';
   const r=anchor.getBoundingClientRect();
-  stddAnchorX=r.left;stddAnchorY=r.bottom+4;
-  dd.style.display='block';
-  const ddW=160;let left=stddAnchorX;if(left+ddW>window.innerWidth)left=window.innerWidth-ddW-8;
-  dd.style.left=left+'px';dd.style.top=stddAnchorY+'px';
+  const ddH=dd.offsetHeight;const ddW=Math.max(dd.offsetWidth,140);
+  let top=r.bottom+4;
+  let left=r.left;
+  // flip above if dropdown would go off-screen at bottom
+  if(top+ddH>window.innerHeight-8)top=r.top-ddH-4;
+  // clamp horizontal
+  if(left+ddW>window.innerWidth-8)left=window.innerWidth-ddW-8;
+  if(left<8)left=8;
+  dd.style.top=Math.max(8,top)+'px';dd.style.left=left+'px';
+  // close on any scroll so dropdown doesn't drift from its anchor
+  const onScroll=()=>closeStDD();
+  window.addEventListener('scroll',onScroll,{once:true,passive:true});
+  document.querySelector('.table-wrap')?.addEventListener('scroll',onScroll,{once:true,passive:true});
   setTimeout(()=>document.addEventListener('click',closeStDD,{once:true}),0);
 }
 function buildOpt(label,dotColor,customColor,active){
