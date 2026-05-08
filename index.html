@@ -387,10 +387,37 @@ function hexToAlpha(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.sl
 
 const C_HEX={none:'#545c6e',green:'#4caf78',amber:'#f5a623',red:'#e05c5c',blue:'#5ba3d9',purple:'#a78bfa',gray:'#9099aa'};
 function optCurrentHex(opt){return opt.color==='custom'?(opt.customColor||'#888888'):(C_HEX[opt.color]||'#888888');}
-function hasDupe(col,fieldId,entryId,val){
-  if(!val||val.trim()==='')return false;
-  return col.entries.some(e=>e.id!==entryId&&(e.vals[fieldId]||'')===val.trim());
+/* build a set of values that appear 2+ times across ALL checkDupe fields in ALL columns */
+function buildDupeSet(){
+  const counts={};
+  cols.forEach(c=>{
+    c.fields.forEach(f=>{
+      if(!f.checkDupe)return;
+      c.entries.forEach(e=>{
+        const v=(e.vals[f.id]||'').trim();
+        if(!v)return;
+        counts[v]=(counts[v]||0)+1;
+      });
+    });
+  });
+  return new Set(Object.keys(counts).filter(k=>counts[k]>1));
 }
+
+/* update dupe highlights on all visible cells without a full re-render */
+function refreshDupeHighlights(){
+  const ds=buildDupeSet();
+  document.querySelectorAll('textarea.cell-text[data-dupe]').forEach(ta=>{
+    const d=ta.value.trim()!==''&&ds.has(ta.value.trim());
+    ta.classList.toggle('cell-dupe',d);ta.title=d?'⚠ Duplicate value':'';
+  });
+  document.querySelectorAll('.status-badge[data-dupe]').forEach(badge=>{
+    const v=(badge.dataset.bval||'').trim();
+    const d=v!==''&&ds.has(v);
+    badge.classList.toggle('cell-dupe',d);
+    badge.title=badge.title.replace(' · ⚠ Duplicate','')+(d?' · ⚠ Duplicate':'');
+  });
+}
+
 function getStatusList(id){return statusLists.find(g=>g.id===id)||null;}
 function optForLabel(g,label){return g&&g.options.find(o=>o.label===label)||null;}
 function getColGroup(colId){return colGroups.find(g=>g.colIds.includes(colId))||null;}
@@ -645,27 +672,32 @@ function buildEntryRow(entry,col,ci,ei,entsEl){
   });
   row.appendChild(edrag);
 
+  const ds=buildDupeSet();
   col.fields.filter(f=>!f.hidden).forEach(field=>{
     const val=entry.vals[field.id]||'';
     if(field.type==='status'){
       const g=getStatusList(field.gid);
       const opt=optForLabel(g,val);
-      const isDupe=field.checkDupe&&hasDupe(col,field.id,entry.id,val);
+      const isDupe=field.checkDupe&&val.trim()!==''&&ds.has(val.trim());
       const badge=mk('button','status-badge '+(opt?optBadgeCls(opt):'sb-none')+(isDupe?' cell-dupe':''));
       if(opt&&opt.color==='custom')badge.style=optBadgeStyle(opt);
-      badge.textContent=val||'—';badge.title='Click to change'+(isDupe?' · ⚠ Duplicate':' ');
+      if(field.checkDupe){badge.dataset.dupe='1';badge.dataset.bval=val;}
+      badge.textContent=val||'—';badge.title='Click to change'+(isDupe?' · ⚠ Duplicate':'');
       badge.onclick=e2=>{e2.stopPropagation();openStDD(badge,entry,field.id,g,()=>{save();render();updateFooter();if(col._bdOpen){const p=badge.closest('.col')?.querySelector('.breakdown-panel');if(p)renderBreakdown(p,col);}});};
       row.appendChild(badge);
     } else {
-      const isDupe=field.checkDupe&&hasDupe(col,field.id,entry.id,val);
-      const ta=mk('textarea','cell-text'+(isDupe?' cell-dupe':''));ta.value=val;ta.placeholder='…';ta.rows=1;
+      const isDupe=field.checkDupe&&val.trim()!==''&&ds.has(val.trim());
+      const ta=mk('textarea','cell-text'+(isDupe?' cell-dupe':''));
+      ta.value=val;ta.placeholder='…';ta.rows=1;
       ta.title=isDupe?'⚠ Duplicate value':'';
+      if(field.checkDupe)ta.dataset.dupe='1';
       ta.addEventListener('input',()=>{
-        entry.vals[field.id]=ta.value;autoResize(ta);if(searchQuery)applySearch();
-        if(field.checkDupe){const d=hasDupe(col,field.id,entry.id,ta.value);ta.classList.toggle('cell-dupe',d);ta.title=d?'⚠ Duplicate value':'';}
+        entry.vals[field.id]=ta.value;autoResize(ta);
+        if(searchQuery)applySearch();
+        if(field.checkDupe)refreshDupeHighlights();
       });
       ta.addEventListener('change',()=>{entry.vals[field.id]=ta.value;save();});
-      ta.addEventListener('blur',()=>{entry.vals[field.id]=ta.value;save();});
+      ta.addEventListener('blur',()=>{entry.vals[field.id]=ta.value;save();if(field.checkDupe)refreshDupeHighlights();});
       ta.addEventListener('keydown',e2=>{if(e2.key==='Enter'&&!e2.shiftKey){e2.preventDefault();ta.blur();}});
       setTimeout(()=>autoResize(ta),0);
       row.appendChild(ta);
