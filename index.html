@@ -320,7 +320,7 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 <div class="searchbar">
   <div class="search-wrap">
     <span class="search-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-    <input class="search-inp" id="searchInp" type="text" placeholder="Search all entries…" oninput="handleSearch(this.value)">
+    <input class="search-inp" id="searchInp" type="text" placeholder="Search all entries…" oninput="handleSearch(this.value)" onblur="if(!this.value)clearSearch()" onkeydown="if(event.key==='Escape'){clearSearch();this.blur()}">
   </div>
   <span class="search-count" id="searchCount"></span>
   <button class="search-clear" id="searchClearBtn" onclick="clearSearch()" style="display:none">✕ Clear</button>
@@ -367,7 +367,7 @@ const C_CLS={none:'sb-none',green:'sb-green',amber:'sb-amber',red:'sb-red',blue:
 
 /* ══ STATE ══ */
 let cols=[], statusLists=[], colGroups=[];
-let searchQuery='', toastTimers={}, btnTimers={};
+let searchQuery='', toastTimers={}, btnTimers={}, autoExpandedGroups=new Set(), autoRevealedCols=new Set(), _searchRendering=false;
 let lastSaveHandle=null;
 
 /* ══ UID / HELPERS ══ */
@@ -690,6 +690,7 @@ function buildEntryRow(entry,col,ci,ei,entsEl){
   const row=mk('div','entry'+(entry._new?' fade-in':''));
   if(entry._new)delete entry._new;
   row.style.gridTemplateColumns=gridTpl(col.fields);
+  row.dataset.eid=entry.id;// for data-based search
 
   /* drag-to-reorder entries */
   const edrag=mk('span','entry-drag');edrag.title='Drag to reorder';edrag.innerHTML=dots6(7,11);
@@ -776,7 +777,38 @@ function buildSettingsPanel(settEl,col){
   const ft=mk('div','stg-section');ft.textContent='Fields';inner.appendChild(ft);
   col.fields.forEach((field,fi)=>{
     const frow=mk('div','field-row');
-    const fdh=mk('span','field-drag-h');fdh.innerHTML=dots6(6,10);
+    const fdh=mk('span','field-drag-h');fdh.title='Drag to reorder';fdh.innerHTML=dots6(6,10);
+
+    // drag-to-reorder fields
+    frow.draggable=false;
+    fdh.addEventListener('mousedown',()=>{frow.draggable=true;});
+    frow.addEventListener('dragstart',e=>{
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('fieldidx',fi);
+      e.dataTransfer.setData('colid',col.id);
+      setTimeout(()=>frow.style.opacity='0.4',0);
+    });
+    frow.addEventListener('dragend',()=>{
+      frow.draggable=false;frow.style.opacity='';
+      settEl.querySelectorAll('.field-row').forEach(r=>r.style.boxShadow='');
+    });
+    frow.addEventListener('dragover',e=>{
+      if(e.dataTransfer.getData('colid')!==col.id&&e.dataTransfer.types.includes('fieldidx')){return;}
+      e.preventDefault();
+      settEl.querySelectorAll('.field-row').forEach(r=>r.style.boxShadow='');
+      frow.style.boxShadow='0 -2px 0 var(--amber) inset';
+    });
+    frow.addEventListener('dragleave',e=>{
+      if(!frow.contains(e.relatedTarget))frow.style.boxShadow='';
+    });
+    frow.addEventListener('drop',e=>{
+      e.preventDefault();frow.style.boxShadow='';
+      const from=parseInt(e.dataTransfer.getData('fieldidx'));
+      const to=fi;if(from===to)return;
+      const[moved]=col.fields.splice(from,1);
+      col.fields.splice(to,0,moved);
+      save();render();
+    });
     const fni=mkinp('field-name-inp',field.label,'Field name');
     fni.onblur=fni.onchange=()=>{field.label=fni.value||'Field';save();render();};
     const tb=mk('button','ftb '+(field.type==='status'?'ftb-status':'ftb-text'));tb.textContent=field.type==='status'?'Status':'Text';
@@ -888,16 +920,56 @@ function buildOpt(label,dotColor,customColor,active){
 function closeStDD(){const dd=document.getElementById('stdd');if(dd)dd.style.display='none';}
 
 /* SEARCH */
-function handleSearch(q){searchQuery=q.trim().toLowerCase();document.getElementById('searchClearBtn').style.display=searchQuery?'':'none';applySearch();updateFooter();}
-function clearSearch(){document.getElementById('searchInp').value='';searchQuery='';document.getElementById('searchClearBtn').style.display='none';document.getElementById('searchCount').textContent='';applySearch();updateFooter();}
+function restoreHiddenState(){
+  autoExpandedGroups.forEach(cgId=>{const cg=colGroups.find(g=>g.id===cgId);if(cg){cg.collapsed=true;const w=document.querySelector(`.cg-wrap[data-cgid="${cgId}"]`);if(w)w.classList.add('collapsed');}});
+  autoExpandedGroups.clear();
+  const hadRevealed=autoRevealedCols.size>0;
+  autoRevealedCols.forEach(colId=>{const c=cols.find(x=>x.id===colId);if(c)c.hidden=true;});
+  autoRevealedCols.clear();
+  if(hadRevealed){_searchRendering=true;render();_searchRendering=false;}
+}
+function handleSearch(q){
+  searchQuery=q.trim().toLowerCase();
+  document.getElementById('searchClearBtn').style.display=searchQuery?'':'none';
+  if(!searchQuery)restoreHiddenState();
+  applySearch();updateFooter();
+}
+function clearSearch(){
+  document.getElementById('searchInp').value='';searchQuery='';
+  document.getElementById('searchClearBtn').style.display='none';
+  document.getElementById('searchCount').textContent='';
+  restoreHiddenState();applySearch();updateFooter();
+}
 function applySearch(){
+  const q=searchQuery;
+  const matchIds=new Set();
+  if(q){cols.forEach(c=>c.entries.forEach(e=>{if(Object.values(e.vals).join(' ').toLowerCase().includes(q))matchIds.add(e.id);}));}
+
+  // auto-reveal hidden cols with matches (like auto-expanding collapsed groups)
+  if(q&&!_searchRendering){
+    let needRender=false;
+    cols.forEach(c=>{if(c.hidden&&c.entries.some(e=>matchIds.has(e.id))){c.hidden=false;autoRevealedCols.add(c.id);needRender=true;}});
+    if(needRender){_searchRendering=true;render();_searchRendering=false;return;}
+  }
   let total=0,matched=0;
-  document.querySelectorAll('.entry').forEach(row=>{total++;if(!searchQuery){row.classList.remove('search-hidden');return;}
-    const parts=[];row.querySelectorAll('textarea.cell-text').forEach(ta=>parts.push(ta.value));row.querySelectorAll('.status-badge').forEach(b=>parts.push(b.textContent));
-    const match=parts.join(' ').toLowerCase().includes(searchQuery);row.classList.toggle('search-hidden',!match);if(match)matched++;});
-  document.querySelectorAll('.col').forEach(colEl=>{if(!searchQuery){colEl.style.display='';return;}const any=[...colEl.querySelectorAll('.entry')].some(r=>!r.classList.contains('search-hidden'));colEl.style.display=any?'':'none';});
-  document.querySelectorAll('.cg-wrap').forEach(wrap=>{if(!searchQuery){wrap.style.display='';return;}const any=[...wrap.querySelectorAll('.entry')].some(r=>!r.classList.contains('search-hidden'));if(!any){wrap.style.display='none';return;}wrap.style.display='';wrap.classList.remove('collapsed');});
-  document.getElementById('searchCount').innerHTML=searchQuery?`<b>${matched}</b> of ${total} entries`:'';
+  document.querySelectorAll('.entry[data-eid]').forEach(row=>{
+    total++;
+    if(!q){row.classList.remove('search-hidden');return;}
+    const hit=matchIds.has(row.dataset.eid);
+    row.classList.toggle('search-hidden',!hit);
+    if(hit)matched++;
+  });
+  document.querySelectorAll('.col').forEach(colEl=>{if(!q){colEl.style.display='';return;}const any=[...colEl.querySelectorAll('.entry')].some(r=>!r.classList.contains('search-hidden'));colEl.style.display=any?'':'none';});
+  document.querySelectorAll('.cg-wrap').forEach(wrap=>{
+    if(!q){wrap.style.display='';return;}
+    const any=[...wrap.querySelectorAll('.entry')].some(r=>!r.classList.contains('search-hidden'));
+    if(!any){wrap.style.display='none';return;}
+    wrap.style.display='';
+    const cgId=wrap.dataset.cgid;
+    const cg=colGroups.find(g=>g.id===cgId);
+    if(cg&&cg.collapsed){cg.collapsed=false;wrap.classList.remove('collapsed');autoExpandedGroups.add(cgId);requestAnimationFrame(syncGroupHeaders);}
+  });
+  document.getElementById('searchCount').innerHTML=q?`<b>${matched}</b> of ${total} entries`:'';
 }
 
 /* DRAWER */
@@ -949,7 +1021,7 @@ function renderStatusTab(){
       // single color picker — properly sized and clickable
       const ci2=document.createElement('input');ci2.type='color';ci2.className='opt-color-pick';
       ci2.value=optCurrentHex(opt);ci2.title='Pick color';
-      ci2.oninput=()=>{opt.color='custom';opt.customColor=ci2.value;save();render();renderDrawer();};
+      ci2.addEventListener('change',()=>{opt.color='custom';opt.customColor=ci2.value;save();render();renderDrawer();});
       const oi2=mkinp('lg-opt-inp',opt.label,'Label');
       oi2.onblur=oi2.onchange=()=>{const nv=oi2.value.trim();if(!nv){oi2.value=opt.label;return;}const old=opt.label;cols.forEach(c=>c.fields.forEach(f=>{if(f.gid===g.id)c.entries.forEach(e=>{if(e.vals[f.id]===old)e.vals[f.id]=nv;});}));opt.label=nv;save();render();};
       const od=mk('button','lg-opt-del');od.innerHTML=xsvg(11);od.onclick=()=>{g.options.splice(oi,1);save();render();renderDrawer();};
