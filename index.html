@@ -75,8 +75,11 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 .table-inner{display:flex;min-width:max-content;align-items:flex-start}
 
 /* COLUMN GROUP */
-.cg-wrap{display:flex;flex-direction:column;border-right:2px solid var(--amber-bd);flex-shrink:0;min-width:0}
+.cg-wrap{display:flex;flex-direction:column;border-right:2px solid var(--amber-bd);flex-shrink:0;min-width:0;position:relative}
 .cg-wrap:last-child{border-right:none}
+.cg-resize-handle{position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:25;background:transparent;transition:background 0.15s}
+.cg-resize-handle:hover{background:rgba(245,166,35,0.5)}
+.cg-resize-handle.active{background:var(--amber)}
 .cg-hdr{display:flex;align-items:center;gap:7px;padding:7px 12px;background:var(--amber-bg);border-bottom:2px solid var(--amber-bd);overflow:hidden;min-width:0}
 .cg-toggle,.cg-del{background:none;border:none;color:var(--amber);padding:2px 4px;border-radius:3px;cursor:pointer;display:flex;align-items:center;flex-shrink:0}
 .cg-del{color:var(--amber-bd);opacity:0.5}
@@ -451,7 +454,11 @@ function syncGroupHeaders(){
   document.querySelectorAll('.cg-wrap:not(.collapsed)').forEach(wrap=>{
     const hdr=wrap.querySelector(':scope>.cg-hdr');
     const body=wrap.querySelector(':scope>.cg-body');
-    if(hdr&&body){hdr.style.width=body.offsetWidth+'px';hdr.style.minWidth='0';}
+    if(!hdr||!body)return;
+    // Sum widths of actual col/stub children — unaffected by header's own intrinsic size
+    const colEls=[...body.children].filter(c=>c.classList.contains('col')||c.classList.contains('col-stub'));
+    const totalW=colEls.reduce((s,c)=>s+c.offsetWidth,0);
+    if(totalW>0){hdr.style.width=totalW+'px';hdr.style.minWidth='0';hdr.style.overflow='hidden';}
   });
 }
 
@@ -466,7 +473,9 @@ function render(){
       const ghdr=mk('div','cg-hdr');
       const tog=mk('button','cg-toggle');tog.innerHTML='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';tog.title='Collapse/expand';
       tog.onclick=()=>{cg.collapsed=!cg.collapsed;save();render();};
-      const ni=mkinp('cg-label-inp',cg.label,'Group name');ni.onblur=ni.onchange=()=>{cg.label=ni.value;save();renderDrawer();};
+      const ni=mkinp('cg-label-inp',cg.label,'Group name');
+      ni.title=cg.label;// tooltip shows full name when truncated
+      ni.onblur=ni.onchange=()=>{cg.label=ni.value;ni.title=ni.value;save();renderDrawer();};
       const total=seg.members.reduce((s,m)=>s+m.col.entries.length,0);
       const pill=mk('span','cg-pill');pill.textContent=`${seg.members.length} col · ${total}`;
       const addBtn=mk('button','cg-add-col-btn');addBtn.innerHTML=plusSvg(10)+' Col';addBtn.title='Add column to this group';addBtn.onclick=()=>addColumnToGroup(cg);
@@ -479,7 +488,31 @@ function render(){
       stub.append(sArr,sLbl,sCnt);stub.onclick=()=>{cg.collapsed=false;save();render();};
       const body=mk('div','cg-body');
       seg.members.forEach(m=>body.appendChild(buildColEl(m.col,m.ci)));
-      wrap.append(ghdr,stub,body);root.appendChild(wrap);
+
+      // group resize handle — resizes the last column in the group
+      const grh=mk('div','cg-resize-handle');grh.title='Drag to resize group';
+      let grStartX=0,grStartW=0;
+      grh.addEventListener('mousedown',e=>{
+        e.preventDefault();e.stopPropagation();
+        grStartX=e.clientX;
+        const lastColEl=body.lastElementChild;
+        grStartW=lastColEl?lastColEl.offsetWidth:220;
+        grh.classList.add('active');
+        const mm=e2=>{
+          const lastColEl2=body.lastElementChild;if(!lastColEl2)return;
+          lastColEl2.style.width=Math.max(120,grStartW+(e2.clientX-grStartX))+'px';
+          syncGroupHeaders();
+        };
+        const mu=()=>{
+          const lastColEl2=body.lastElementChild;
+          if(lastColEl2){const lm=seg.members[seg.members.length-1];if(lm){lm.col.width=lastColEl2.offsetWidth;save();}}
+          grh.classList.remove('active');
+          document.removeEventListener('mousemove',mm);document.removeEventListener('mouseup',mu);
+        };
+        document.addEventListener('mousemove',mm);document.addEventListener('mouseup',mu);
+      });
+
+      wrap.append(ghdr,stub,body,grh);root.appendChild(wrap);
     }
   });
   const acw=mk('div','add-col-wrap');
