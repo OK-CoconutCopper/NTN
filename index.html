@@ -86,9 +86,10 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 .cg-del:hover{opacity:1;color:var(--red);background:var(--red-bg)}
 .cg-label-inp{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--amber);background:none;border:none;padding:0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cg-label-inp:focus{outline:none;border-bottom:1px solid var(--amber)}
-.cg-pill{font-family:var(--mono);font-size:10px;color:var(--amber-bd);background:rgba(245,166,35,0.08);border:1px solid var(--amber-bd);border-radius:10px;padding:1px 7px;flex-shrink:0}
-.cg-add-col-btn{background:none;border:1px solid var(--amber-bd);color:var(--amber);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;margin-left:auto;flex-shrink:0}
+.cg-pill{font-family:var(--mono);font-size:10px;color:var(--amber-bd);background:rgba(245,166,35,0.08);border:1px solid var(--amber-bd);border-radius:10px;padding:1px 7px;flex-shrink:1;min-width:0;overflow:hidden;white-space:nowrap}
+.cg-add-col-btn{background:none;border:1px solid var(--amber-bd);color:var(--amber);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:3px;flex-shrink:1;min-width:28px;overflow:hidden}
 .cg-add-col-btn:hover{background:rgba(245,166,35,0.15)}
+.cg-wrap.drag-over-group{box-shadow:-4px 0 0 0 var(--green) inset}
 .cg-body{display:flex}
 .cg-stub{display:none;width:28px;background:var(--amber-bg);border-right:2px solid var(--amber-bd);cursor:pointer;flex-direction:column;align-items:center;padding:10px 0;gap:10px;min-height:80px;transition:background 0.15s;flex-shrink:0}
 .cg-stub:hover{background:rgba(245,166,35,0.18)}
@@ -168,7 +169,7 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 .field-col-resize:hover{background:var(--amber-bd)}
 .field-col-resize.active{background:var(--amber)}
 .entries{flex:1}
-.entry{display:grid;padding:4px 11px 4px 5px;border-bottom:1px solid var(--border);gap:5px;align-items:start;transition:background 0.1s;overflow:hidden}
+.entry{display:grid;padding:4px 26px 4px 5px;border-bottom:1px solid var(--border);gap:5px;align-items:start;transition:background 0.1s;overflow:hidden;position:relative}
 .entry:hover{background:rgba(255,255,255,0.025)}
 .entry.fade-in{animation:entryIn 0.15s ease}
 .entry.search-hidden{display:none}
@@ -192,13 +193,12 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 .sb-purple{background:var(--purple-bg);border-color:var(--purple-bd);color:var(--purple)}
 .sb-gray{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
 .sb-custom{border-color:var(--border2)}
-.entry-del{background:none;border:none;cursor:pointer;color:var(--text3);opacity:0;padding:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:3px;transition:all 0.15s;flex-shrink:0;padding-top:3px}
-.entry:hover .entry-del{opacity:0.35}
+.entry-del{position:absolute;right:4px;top:4px;background:none;border:none;cursor:pointer;color:var(--text3);opacity:0;padding:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:3px;transition:all 0.15s;z-index:5}
+.entry:hover .entry-del{opacity:0.45}
 .entry-del:hover{opacity:1!important;color:var(--red);background:var(--red-bg)}
-.entry-del.confirming{opacity:1!important;color:var(--red);background:var(--red-bg);border-radius:3px}
 
 /* ADD ROW */
-.add-row{display:grid;padding:6px 11px 6px 5px;border-top:1px solid var(--border);background:var(--bg3);gap:5px;align-items:start;cursor:text}
+.add-row{display:grid;padding:6px 32px 6px 5px;border-top:1px solid var(--border);background:var(--bg3);gap:5px;align-items:start;cursor:text;position:relative}
 .add-inp-primary{font-family:var(--mono);font-size:12px;color:var(--text);background:none;border:none;padding:2px 0;width:100%;outline:none;min-width:0;resize:none;overflow:hidden;line-height:1.5;min-height:20px;display:block;white-space:nowrap}
 .add-inp-primary::placeholder{color:var(--text3)}
 
@@ -322,7 +322,7 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 <div class="searchbar">
   <div class="search-wrap">
     <span class="search-ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-    <input class="search-inp" id="searchInp" type="text" placeholder="Search all entries…" oninput="handleSearch(this.value)" onblur="if(!this.value)clearSearch()" onkeydown="if(event.key==='Escape'){clearSearch();this.blur()}">
+    <input class="search-inp" id="searchInp" type="text" placeholder="Search…" oninput="handleSearch(this.value)" onblur="if(!this.value)clearSearch()" onkeydown="if(event.key==='Escape'){clearSearch();this.blur()}">
   </div>
   <span class="search-count" id="searchCount"></span>
   <button class="search-clear" id="searchClearBtn" onclick="clearSearch()" style="display:none">✕ Clear</button>
@@ -439,9 +439,7 @@ function optForLabel(g,label){return g&&g.options.find(o=>o.label===label)||null
 function getColGroup(colId){return colGroups.find(g=>g.colIds.includes(colId))||null;}
 function gridTpl(fields){
   const vis=fields.filter(f=>!f.hidden);
-  return '14px '+vis.map(f=>
-    (f.width?f.width:f.type==='status'?78:120)+'px'
-  ).join(' ')+' 18px';
+  return '14px '+vis.map(f=>(f.width?f.width:f.type==='status'?78:120)+'px').join(' ');
 }
 
 /* ══ DEFAULTS ══ */
@@ -458,12 +456,14 @@ function save(){try{localStorage.setItem('ntn-v6',JSON.stringify({cols,statusLis
 /* ══ RENDER SEGMENTS ══ */
 function buildSegments(){
   const seen=new Set();const segs=[];
-  cols.forEach((col,ci)=>{
-    if(seen.has(col.id))return;
-    const cg=getColGroup(col.id);
-    if(!cg){seen.add(col.id);segs.push({type:'standalone',col,ci});}
-    else{const members=cg.colIds.map(id=>{const c=cols.find(x=>x.id===id);return c?{col:c,ci:cols.indexOf(c)}:null;}).filter(Boolean);members.forEach(m=>seen.add(m.col.id));segs.push({type:'group',cg,members});}
+  // groups first, in colGroups order
+  colGroups.forEach(cg=>{
+    const members=cg.colIds.map(id=>{const c=cols.find(x=>x.id===id);return c?{col:c,ci:cols.indexOf(c)}:null;}).filter(Boolean);
+    members.forEach(m=>seen.add(m.col.id));
+    segs.push({type:'group',cg,members});
   });
+  // ungrouped columns in cols order
+  cols.forEach((col,ci)=>{if(!seen.has(col.id))segs.push({type:'standalone',col,ci});});
   return segs;
 }
 
@@ -488,7 +488,35 @@ function render(){
     else{
       const cg=seg.cg;
       const wrap=mk('div','cg-wrap'+(cg.collapsed?' collapsed':''));wrap.dataset.cgid=cg.id;
+      const gi=colGroups.indexOf(cg);
+
+      // group drag-to-reorder
+      wrap.draggable=false;
+      wrap.addEventListener('dragstart',e=>{
+        if(!e.dataTransfer.types.includes('groupidx')){
+          e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('groupidx',gi);
+          setTimeout(()=>wrap.classList.add('dragging'),0);
+        }
+      });
+      wrap.addEventListener('dragend',()=>{wrap.draggable=false;wrap.classList.remove('dragging');document.querySelectorAll('.cg-wrap').forEach(w=>w.classList.remove('drag-over-group'));});
+      wrap.addEventListener('dragover',e=>{
+        if(e.dataTransfer.types.includes('groupidx')){e.preventDefault();document.querySelectorAll('.cg-wrap').forEach(w=>w.classList.remove('drag-over-group'));wrap.classList.add('drag-over-group');}
+      });
+      wrap.addEventListener('dragleave',e=>{if(!wrap.contains(e.relatedTarget))wrap.classList.remove('drag-over-group');});
+      wrap.addEventListener('drop',e=>{
+        if(!e.dataTransfer.types.includes('groupidx'))return;
+        e.preventDefault();wrap.classList.remove('drag-over-group');
+        const from=parseInt(e.dataTransfer.getData('groupidx'));const to=gi;
+        if(from===to)return;
+        const[moved]=colGroups.splice(from,1);colGroups.splice(to,0,moved);
+        save();render();
+      });
+
       const ghdr=mk('div','cg-hdr');
+      // drag handle for group reorder
+      const grpDrag=mk('span','col-drag');grpDrag.style.cssText='color:var(--amber-bd);flex-shrink:0';
+      grpDrag.title='Drag to reorder group';grpDrag.innerHTML=dots6(8,13);
+      grpDrag.addEventListener('mousedown',()=>{wrap.draggable=true;});
       const tog=mk('button','cg-toggle');tog.innerHTML='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';tog.title='Collapse/expand';
       tog.onclick=()=>{cg.collapsed=!cg.collapsed;save();render();};
       const ni=mkinp('cg-label-inp',cg.label,'Group name');
@@ -498,7 +526,7 @@ function render(){
       const pill=mk('span','cg-pill');pill.textContent=`${seg.members.length} col · ${total}`;
       const addBtn=mk('button','cg-add-col-btn');addBtn.innerHTML=plusSvg(10)+' Col';addBtn.title='Add column to this group';addBtn.onclick=()=>addColumnToGroup(cg);
       const delG=mk('button','cg-del');delG.innerHTML=xsvg(11);delG.title='Delete group';delG.onclick=()=>confirmDelGroup(cg);
-      ghdr.append(tog,ni,pill,addBtn,delG);
+      ghdr.append(grpDrag,tog,ni,pill,addBtn,delG);
       const stub=mk('div','cg-stub');stub.title='Expand '+cg.label;
       const sArr=mk('span','cg-stub-arrow');sArr.innerHTML='<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
       const sLbl=mk('span','cg-stub-label');sLbl.textContent=cg.label;
@@ -592,8 +620,7 @@ function buildColEl(col,ci){
   /* SUBHEADER with per-field resize handles */
   const sub=mk('div','col-subhdr');sub.style.gridTemplateColumns=gridTpl(col.fields);
   sub.appendChild(mk('span'));// drag handle col
-  col.fields.filter(f=>!f.hidden).forEach((field,fi,vis)=>{
-    const cell=mk('div','field-col-hdr');
+  col.fields.filter(f=>!f.hidden).forEach((field,fi,vis)=>{    const cell=mk('div','field-col-hdr');
     const lbl=mk('span');lbl.textContent=field.label;cell.appendChild(lbl);
     // resize handle on right edge of each field header
     if(fi<vis.length-1||(fi===vis.length-1)){
@@ -615,7 +642,7 @@ function buildColEl(col,ci){
     }
     sub.appendChild(cell);
   });
-  sub.appendChild(mk('span'));// del col
+  // no trailing span — delete col removed from grid
 
   /* ENTRIES */
   const entsEl=mk('div','entries');
@@ -655,7 +682,8 @@ function buildColEl(col,ci){
       addRow.appendChild(mk('span'));
     }
   });
-  const ab=mk('button','add-btn');ab.id='ab-'+col.id;ab.style.cssText='background:none;border:1px solid var(--border2);color:var(--text3);border-radius:4px;padding:0;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:22px;height:22px;transition:all 0.15s;margin-top:1px';
+  const ab=mk('button','add-btn');ab.id='ab-'+col.id;
+  ab.style.cssText='position:absolute;right:5px;top:6px;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:4px;padding:0;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:22px;height:22px;transition:all 0.15s;z-index:5';
   ab.innerHTML=arrowSvg();ab.title='Add entry (Enter)';
   ab.addEventListener('mouseover',()=>{ab.style.borderColor='var(--amber-bd)';ab.style.color='var(--amber)';ab.style.background='var(--amber-bg)';});
   ab.addEventListener('mouseout',()=>{ab.style.borderColor='var(--border2)';ab.style.color='var(--text3)';ab.style.background='none';});
@@ -971,7 +999,17 @@ function clearSearch(){
 function applySearch(){
   const q=searchQuery;
   const matchIds=new Set();
-  if(q){cols.forEach(c=>c.entries.forEach(e=>{if(Object.values(e.vals).join(' ').toLowerCase().includes(q))matchIds.add(e.id);}));}
+  if(q){
+    const matchingGroupIds=new Set(colGroups.filter(cg=>cg.label.toLowerCase().includes(q)).map(cg=>cg.id));
+    cols.forEach(c=>{
+      const cg=getColGroup(c.id);
+      const groupMatch=cg&&matchingGroupIds.has(cg.id);
+      const colMatch=c.label.toLowerCase().includes(q);
+      c.entries.forEach(e=>{
+        if(groupMatch||colMatch||Object.values(e.vals).join(' ').toLowerCase().includes(q))matchIds.add(e.id);
+      });
+    });
+  }
 
   // auto-reveal hidden cols with matches (like auto-expanding collapsed groups)
   if(q&&!_searchRendering){
