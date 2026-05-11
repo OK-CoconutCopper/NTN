@@ -139,6 +139,8 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 .field-grp-sel:focus,.grp-assign-sel:focus{outline:none;border-color:var(--amber)}
 .cell-text.cell-dupe{border-bottom:2px solid var(--red)!important;background:rgba(224,92,92,0.08);}
 .status-badge.cell-dupe{outline:2px solid var(--red);outline-offset:1px;}
+.cell-text{min-width:0}
+.status-badge{min-width:0}
 .field-dupe-btn{background:none;border:none;cursor:pointer;padding:2px;border-radius:3px;display:flex;align-items:center;opacity:0.3;flex-shrink:0}
 .field-dupe-btn:hover{opacity:1}
 .field-dupe-btn.on{opacity:1;color:var(--red)}
@@ -159,14 +161,14 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 .bd-count{font-family:var(--mono);font-size:10px;color:var(--text3);flex-shrink:0;min-width:20px;text-align:right}
 
 /* SUB-HEADER + ENTRIES */
-.col-subhdr{display:grid;padding:4px 11px 4px 5px;border-bottom:1px solid var(--border);background:var(--bg3);gap:0}
-.field-col-hdr{position:relative;display:flex;align-items:center;padding:0 5px;overflow:visible;min-width:0}
-.field-col-hdr span{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.field-col-resize{position:absolute;right:-3px;top:-4px;bottom:-4px;width:7px;cursor:col-resize;z-index:15;background:transparent;transition:background 0.15s}
+.col-subhdr{display:grid;padding:4px 11px 4px 5px;border-bottom:1px solid var(--border);background:var(--bg3);gap:5px}
+.field-col-hdr{position:relative;display:flex;align-items:center;padding:0 5px;overflow:hidden;min-width:0}
+.field-col-hdr span{font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.field-col-resize{position:absolute;right:0;top:-4px;bottom:-4px;width:6px;cursor:col-resize;z-index:15;background:transparent;transition:background 0.15s}
 .field-col-resize:hover{background:var(--amber-bd)}
 .field-col-resize.active{background:var(--amber)}
 .entries{flex:1}
-.entry{display:grid;padding:4px 11px 4px 5px;border-bottom:1px solid var(--border);gap:5px;align-items:start;transition:background 0.1s}
+.entry{display:grid;padding:4px 11px 4px 5px;border-bottom:1px solid var(--border);gap:5px;align-items:start;transition:background 0.1s;overflow:hidden}
 .entry:hover{background:rgba(255,255,255,0.025)}
 .entry.fade-in{animation:entryIn 0.15s ease}
 .entry.search-hidden{display:none}
@@ -350,6 +352,17 @@ button{font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:var(-
 <div class="modal-bg" id="delCgModal"><div class="modal"><h3>Delete column group?</h3><p>The group <span class="modal-name" id="delCgName"></span> will be removed. Its columns stay ungrouped.</p><div class="modal-actions"><button class="btn" onclick="closeModal('delCgModal')">Cancel</button><button class="btn-danger" style="border:1px solid var(--red-bg);padding:5px 13px" id="delCgOk">Delete group</button></div></div></div>
 <div class="modal-bg" id="delFieldModal"><div class="modal"><h3>Delete field?</h3><p>The field <span class="modal-name" id="delFieldName"></span> and all its data across every entry will be permanently removed. <strong style="color:var(--red)">This cannot be undone.</strong></p><div class="modal-actions"><button class="btn" onclick="closeModal('delFieldModal')">Cancel</button><button class="btn-danger" style="border:1px solid var(--red-bg);padding:5px 13px" id="delFieldOk">Delete</button></div></div></div>
 <div class="modal-bg" id="delEntryModal"><div class="modal"><h3>Delete entry?</h3><p>This entry will be permanently removed. <strong style="color:var(--red)">This cannot be undone.</strong></p><div class="modal-actions"><button class="btn" onclick="closeModal('delEntryModal')">Cancel</button><button class="btn-danger" style="border:1px solid var(--red-bg);padding:5px 13px" id="delEntryOk">Delete</button></div></div></div>
+<div class="modal-bg" id="exitModal">
+  <div class="modal" style="width:400px">
+    <h3>Before you go…</h3>
+    <p>Would you like to save a backup file first? Browser cache can be cleared unexpectedly.</p>
+    <div class="modal-actions" style="flex-direction:column;gap:8px;align-items:stretch">
+      <button class="btn-green" style="justify-content:center;padding:8px" onclick="doExportJSON().then(()=>{window.removeEventListener('beforeunload',_beforeUnload);closeModal('exitModal');})">💾 Save backup</button>
+      <button class="btn-danger" style="border:1px solid var(--red-bg);padding:8px;justify-content:center" onclick="window.removeEventListener('beforeunload',_beforeUnload);closeModal('exitModal');window.close()">Leave without saving</button>
+      <button class="btn" style="justify-content:center;padding:8px" onclick="closeModal('exitModal')">Cancel — stay on page</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="clearModal"><div class="modal"><h3>Clear all entries?</h3><p>Every entry in every column is removed. Structure, fields, groups, and status lists are kept. <strong style="color:var(--red)">This cannot be undone.</strong></p><div class="modal-actions"><button class="btn" onclick="closeModal('clearModal')">Cancel</button><button class="btn-danger" style="border:1px solid var(--red-bg);padding:5px 13px" onclick="clearAll()">Clear all entries</button></div></div></div>
 <div class="modal-bg" id="clearColsModal"><div class="modal"><h3>Clear all columns?</h3><p>Every column and all their entries will be permanently deleted. Column groups and status lists are kept. <strong style="color:var(--red)">This cannot be undone.</strong></p><div class="modal-actions"><button class="btn" onclick="closeModal('clearColsModal')">Cancel</button><button class="btn-danger" style="border:1px solid var(--red-bg);padding:5px 13px" onclick="clearAllColumns()">Delete all columns</button></div></div></div>
 
@@ -424,7 +437,12 @@ function refreshDupeHighlights(){
 function getStatusList(id){return statusLists.find(g=>g.id===id)||null;}
 function optForLabel(g,label){return g&&g.options.find(o=>o.label===label)||null;}
 function getColGroup(colId){return colGroups.find(g=>g.colIds.includes(colId))||null;}
-function gridTpl(fields){const vis=fields.filter(f=>!f.hidden);return '14px '+vis.map(f=>f.width?f.width+'px':f.type==='status'?'78px':'1fr').join(' ')+' 18px';}
+function gridTpl(fields){
+  const vis=fields.filter(f=>!f.hidden);
+  return '14px '+vis.map(f=>
+    (f.width?f.width:f.type==='status'?78:120)+'px'
+  ).join(' ')+' 18px';
+}
 
 /* ══ DEFAULTS ══ */
 function defaults(){
@@ -728,7 +746,7 @@ function buildEntryRow(entry,col,ci,ei,entsEl){
       if(field.checkDupe){badge.dataset.dupe='1';badge.dataset.bval=val;}
       badge.textContent=val||'—';badge.title='Click to change'+(isDupe?' · ⚠ Duplicate':'');
       badge.onclick=e2=>{e2.stopPropagation();openStDD(badge,entry,field.id,g,()=>{save();render();updateFooter();if(col._bdOpen){const p=badge.closest('.col')?.querySelector('.breakdown-panel');if(p)renderBreakdown(p,col);}});};
-      row.appendChild(badge);
+      const bc=mk('div','');bc.style.cssText='overflow:hidden;min-width:0;display:flex;align-items:flex-start;';bc.appendChild(badge);row.appendChild(bc);
     } else {
       const isDupe=field.checkDupe&&val.trim()!==''&&ds.has(val.trim());
       const ta=mk('textarea','cell-text'+(isDupe?' cell-dupe':''));
@@ -744,7 +762,7 @@ function buildEntryRow(entry,col,ci,ei,entsEl){
       ta.addEventListener('blur',()=>{entry.vals[field.id]=ta.value;save();if(field.checkDupe)refreshDupeHighlights();});
       ta.addEventListener('keydown',e2=>{if(e2.key==='Enter'&&!e2.shiftKey){e2.preventDefault();ta.blur();}});
       setTimeout(()=>autoResize(ta),0);
-      row.appendChild(ta);
+      const tc=mk('div','');tc.style.cssText='overflow:hidden;min-width:0;';tc.appendChild(ta);row.appendChild(tc);
     }
   });
 
@@ -1120,6 +1138,10 @@ function doExportCSV(){let csv='\uFEFF';/* UTF-8 BOM for Thai/Unicode in Excel *
 /* RANDOM SHOUT */
 function scheduleShout(){const delay=7000+Math.random()*5000;setTimeout(()=>{const els=document.querySelectorAll('.at-x,.at-bb');els.forEach(e=>e.classList.add('shaking'));setTimeout(()=>{els.forEach(e=>e.classList.remove('shaking'));scheduleShout();},700);},delay);}
 scheduleShout();
+
+/* ── BACKUP REMINDER ON CLOSE ── */
+function _beforeUnload(e){e.preventDefault();e.returnValue='';openModal('exitModal');}
+window.addEventListener('beforeunload',_beforeUnload);
 
 load();
 </script>
