@@ -410,12 +410,11 @@ function buildDupeSet(){
     c.fields.forEach(f=>{
       if(!f.checkDupe)return;
       c.entries.forEach(e=>{
-        // split by newlines so multi-line entries are checked line by line
-        (e.vals[f.id]||'').split('\n').forEach(line=>{
-          const v=line.trim().toLowerCase();
-          if(!v)return;
-          counts[v]=(counts[v]||0)+1;
-        });
+        // deduplicate lines within this cell first — only count each unique line once per entry
+        const uniqueLines=new Set(
+          (e.vals[f.id]||'').split('\n').map(l=>l.trim().toLowerCase()).filter(Boolean)
+        );
+        uniqueLines.forEach(v=>{counts[v]=(counts[v]||0)+1;});
       });
     });
   });
