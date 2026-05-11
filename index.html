@@ -410,9 +410,12 @@ function buildDupeSet(){
     c.fields.forEach(f=>{
       if(!f.checkDupe)return;
       c.entries.forEach(e=>{
-        const v=(e.vals[f.id]||'').trim();
-        if(!v)return;
-        counts[v]=(counts[v]||0)+1;
+        // split by newlines so multi-line entries are checked line by line
+        (e.vals[f.id]||'').split('\n').forEach(line=>{
+          const v=line.trim().toLowerCase();
+          if(!v)return;
+          counts[v]=(counts[v]||0)+1;
+        });
       });
     });
   });
@@ -423,11 +426,11 @@ function buildDupeSet(){
 function refreshDupeHighlights(){
   const ds=buildDupeSet();
   document.querySelectorAll('textarea.cell-text[data-dupe]').forEach(ta=>{
-    const d=ta.value.trim()!==''&&ds.has(ta.value.trim());
+    const d=ta.value.trim()!==''&&ta.value.split('\n').some(line=>ds.has(line.trim().toLowerCase()));
     ta.classList.toggle('cell-dupe',d);ta.title=d?'⚠ Duplicate value':'';
   });
   document.querySelectorAll('.status-badge[data-dupe]').forEach(badge=>{
-    const v=(badge.dataset.bval||'').trim();
+    const v=(badge.dataset.bval||'').trim().toLowerCase();
     const d=v!==''&&ds.has(v);
     badge.classList.toggle('cell-dupe',d);
     badge.title=badge.title.replace(' · ⚠ Duplicate','')+(d?' · ⚠ Duplicate':'');
@@ -768,7 +771,7 @@ function buildEntryRow(entry,col,ci,ei,entsEl){
     if(field.type==='status'){
       const g=getStatusList(field.gid);
       const opt=optForLabel(g,val);
-      const isDupe=field.checkDupe&&val.trim()!==''&&ds.has(val.trim());
+      const isDupe=field.checkDupe&&val.trim()!==''&&ds.has(val.trim().toLowerCase());
       const badge=mk('button','status-badge '+(opt?optBadgeCls(opt):'sb-none')+(isDupe?' cell-dupe':''));
       if(opt&&opt.color==='custom')badge.style=optBadgeStyle(opt);
       if(field.checkDupe){badge.dataset.dupe='1';badge.dataset.bval=val;}
@@ -776,7 +779,7 @@ function buildEntryRow(entry,col,ci,ei,entsEl){
       badge.onclick=e2=>{e2.stopPropagation();openStDD(badge,entry,field.id,g,()=>{save();render();updateFooter();if(col._bdOpen){const p=badge.closest('.col')?.querySelector('.breakdown-panel');if(p)renderBreakdown(p,col);}});};
       const bc=mk('div','');bc.style.cssText='overflow:hidden;min-width:0;display:flex;align-items:flex-start;';bc.appendChild(badge);row.appendChild(bc);
     } else {
-      const isDupe=field.checkDupe&&val.trim()!==''&&ds.has(val.trim());
+      const isDupe=field.checkDupe&&val.trim()!==''&&val.split('\n').some(line=>ds.has(line.trim().toLowerCase()));
       const ta=mk('textarea','cell-text'+(isDupe?' cell-dupe':''));
       ta.value=val;ta.placeholder='…';ta.rows=1;
       ta.title=isDupe?'⚠ Duplicate value':'';
@@ -784,7 +787,7 @@ function buildEntryRow(entry,col,ci,ei,entsEl){
       ta.addEventListener('input',()=>{
         entry.vals[field.id]=ta.value;autoResize(ta);
         if(searchQuery)applySearch();
-        if(field.checkDupe)refreshDupeHighlights();
+        if(field.checkDupe){const d=ta.value.trim()!==''&&ta.value.split('\n').some(line=>buildDupeSet().has(line.trim().toLowerCase()));ta.classList.toggle('cell-dupe',d);ta.title=d?'⚠ Duplicate value':'';}
       });
       ta.addEventListener('change',()=>{entry.vals[field.id]=ta.value;save();});
       ta.addEventListener('blur',()=>{entry.vals[field.id]=ta.value;save();if(field.checkDupe)refreshDupeHighlights();});
