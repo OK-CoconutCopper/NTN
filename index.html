@@ -1036,6 +1036,7 @@ function applySearch(){
     if(cg&&cg.collapsed){cg.collapsed=false;wrap.classList.remove('collapsed');autoExpandedGroups.add(cgId);requestAnimationFrame(syncGroupHeaders);}
   });
   document.getElementById('searchCount').innerHTML=q?`<b>${matched}</b> of ${total} entries`:'';
+  requestAnimationFrame(syncGroupHeaders);
 }
 
 /* DRAWER */
