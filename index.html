@@ -478,7 +478,10 @@ function syncGroupHeaders(){
     // Sum widths of actual col/stub children — unaffected by header's own intrinsic size
     const colEls=[...body.children].filter(c=>c.classList.contains('col')||c.classList.contains('col-stub'));
     const totalW=colEls.reduce((s,c)=>s+c.offsetWidth,0);
-    if(totalW>0){hdr.style.width=totalW+'px';hdr.style.minWidth='0';hdr.style.overflow='hidden';}
+    if(totalW>0){
+      hdr.style.width=Math.max(totalW,100)+'px';
+      hdr.style.minWidth='0';hdr.style.overflow='hidden';
+    }
   });
 }
 
